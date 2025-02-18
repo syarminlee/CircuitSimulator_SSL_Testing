@@ -18,6 +18,12 @@ namespace CircuitSim.BaseObjects
             set { SetValue(CanMoveProperty, value); }
         }
 
+        ///SSL
+
+        private Stack<Point> undoStack = new Stack<Point>();
+        private Stack<Point> redoStack = new Stack<Point>();
+
+
         //The anchor point of the object when being moved
         private Point _anchorPoint;
 
@@ -56,6 +62,10 @@ namespace CircuitSim.BaseObjects
         /// </summary>
         /// <param name="sender">The element that is calling the event</param>
         /// <param name="e">The event parameters</param>
+        /// 
+        ///ssl
+
+
         private void DragObject_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             //Don't start the drag if we can't interact with the object
@@ -81,6 +91,9 @@ namespace CircuitSim.BaseObjects
             e.Handled = true;
         }
 
+        ///ssl
+
+
         /// <summary>
         /// Called when the user lets go of the mouse.
         /// </summary>
@@ -88,13 +101,20 @@ namespace CircuitSim.BaseObjects
         /// <param name="e">The event parameters</param>
         private void DragObject_MouseLeftButtonUp(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
-            //Make sure the object is being dragged
+            // Make sure the object is being dragged
             if (_isInDrag)
             {
-                //Stop dragging and uncapture the mouse
+                // Stop dragging and uncapture the mouse
                 _isInDrag = false;
                 var element = sender as FrameworkElement;
                 element.ReleaseMouseCapture();
+
+                // After dragging, save the current position to the undo stack
+                undoStack.Push(new Point(_transform.X, _transform.Y));
+
+                // Clear the redo stack whenever a new action is performed (since you can't redo after a new move)
+                redoStack.Clear();
+
                 e.Handled = true;
             }
         }
@@ -163,6 +183,46 @@ namespace CircuitSim.BaseObjects
         {
             _attachedInputLines.Add(line);
         }
+
+        ///ssl
+        /// <summary>
+        /// Undo the last move action.
+        /// </summary>
+        public void Undo()
+        {
+            if (undoStack.Count > 0)
+            {
+                // Push the current position to the redo stack before undoing
+                redoStack.Push(new Point(_transform.X, _transform.Y));
+
+                // Pop the last position from the undo stack and set it
+                Point lastPosition = undoStack.Pop();
+                _transform.X = lastPosition.X;
+                _transform.Y = lastPosition.Y;
+
+                this.RenderTransform = _transform;
+            }
+        }
+
+        /// <summary>
+        /// Redo the last undone move action.
+        /// </summary>
+        public void Redo()
+        {
+            if (redoStack.Count > 0)
+            {
+                // Push the current position to the undo stack before redoing
+                undoStack.Push(new Point(_transform.X, _transform.Y));
+
+                // Pop the last position from the redo stack and set it
+                Point nextPosition = redoStack.Pop();
+                _transform.X = nextPosition.X;
+                _transform.Y = nextPosition.Y;
+
+                this.RenderTransform = _transform;
+            }
+        }
+
 
         /// <summary>
         /// Adds an output line to the list of attached lines
